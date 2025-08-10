@@ -1,18 +1,20 @@
 let backgroundcolor = 220;
 let canvas;
 
+// ===== audio plumbing =====
+// let srcMode = "off";   // "off" | "mic" | "file"
+let mic, fft, amp, audiofile;
 // future: put this in a soundController
 var audio;
 let micEnabled = false;
-var fft;
-let amp;
-let audiofile; // for internal audio mode
 // end section
 
 let PRMODE = false; // for debug
 let INTERNALAUDIOMODE = false; // for debug
 // future make mic and internal mutex
 let DEBUG = false; // for debug
+
+let btnMic, btnExport, btnInternalAudio;
 
 // TIME SCALES FOR PARAM CHANGES
 let FIVE_SECONDS = 60*5;
@@ -38,9 +40,7 @@ function setup() {
   btnExport = createButton("Export");
   btnInternalAudio = createButton("Internal Audio");
 
-  btnExport.mousePressed(() => { 
-    saveCanvas('aliasing.png'); 
-  });
+  btnExport.mousePressed(() => {saveCanvas('aliasing.png');});
 
   // toggle inputs
   btnMic.mousePressed(toggleMic);
@@ -69,11 +69,11 @@ function draw() {
     // console.log("AMP : " + amp.getLevel()); // same as direct mic
 
     // we "init" twice this ampLevel, it seems they are different objects and need to run one over the other
-    if (INTERNALAUDIOMODE) {
+    // if (INTERNALAUDIOMODE) {
       var ampLevel = amp.getLevel(); // get the level of the audio file
-    } else {
-      var ampLevel = audio.getLevel(); // get the level of the mic input
-    }
+    // } else {
+      // var ampLevel = audio.getLevel(); // get the level of the mic input
+    // }
 
 
     //FFT (Fast Fourier Transform) is an analysis algorithm that isolates individual audio frequencies within a waveform. The p5.FFT object can return two types of data in arrays via two different functions: waveform() and analyze()
@@ -125,16 +125,16 @@ function toggleMic() {
         audio.stop();
 
         // reset to default?
-        // fft.setInput(); 
+        fft.setInput(); 
         // amp.setInput();
   
     }
     else {
       console.log("Mic ON");
-      audio.start();
-
-      fft.setInput(audio); //  set the input source for the FFT object to the mic
-      amp.setInput(audio);
+      audio.start(() => {
+        fft.setInput(audio);
+        amp.setInput(audio);
+      });
 
     }
       micEnabled = !micEnabled;
@@ -143,7 +143,11 @@ function toggleMic() {
 function toggleInternalAudio() {
   // TODO FIX THE AMP UPON SWITCH after INTERNAL
   console.log("Toggling internal audio mode");
+  try { getAudioContext().resume(); } catch(e) {}
     if (!INTERNALAUDIOMODE) {
+      if (micEnabled) { audio.stop(); micEnabled = false; } // <-- simple mutex
+      if (!audiofile) { console.warn("No audiofile loaded"); return; }
+
       // console.log("BUTTON Using internal audio mode with audio file: " + audiofile);
       audiofile.play();
       fft.setInput(audiofile); //  set the input source for the FFT object to the mic
@@ -152,10 +156,9 @@ function toggleInternalAudio() {
       // console.log("BUTTON Stopping internal audio mode");
       // audiofile.stop();
       audiofile.pause(); // to continue from where we left off // future make this a toggle
-      
       // reset to default?
       fft.setInput(); 
-      amp.setInput();
+      // amp.setInput();
 
     }
   INTERNALAUDIOMODE = !INTERNALAUDIOMODE;
