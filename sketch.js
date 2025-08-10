@@ -123,11 +123,7 @@ function toggleMic() {
     if (micEnabled) {
         console.log("Mic OFF");
         audio.stop();
-
-        // reset to default?
-        fft.setInput(); 
-        // amp.setInput();
-  
+        fft.setInput();  // reset to default, can't reset amp  
     }
     else {
       console.log("Mic ON");
@@ -146,20 +142,14 @@ function toggleInternalAudio() {
   try { getAudioContext().resume(); } catch(e) {}
     if (!INTERNALAUDIOMODE) {
       if (micEnabled) { audio.stop(); micEnabled = false; } // <-- simple mutex
-      if (!audiofile) { console.warn("No audiofile loaded"); return; }
-
-      // console.log("BUTTON Using internal audio mode with audio file: " + audiofile);
-      audiofile.play();
-      fft.setInput(audiofile); //  set the input source for the FFT object to the mic
-      amp.setInput(audiofile);
+        if (!audiofile) { console.warn("No audiofile loaded"); return; }
+        audiofile.play();
+        fft.setInput(audiofile); //  set the input source for the FFT object to the mic
+        amp.setInput(audiofile);
     } else {
-      // console.log("BUTTON Stopping internal audio mode");
-      // audiofile.stop();
-      audiofile.pause(); // to continue from where we left off // future make this a toggle
-      // reset to default?
-      fft.setInput(); 
-      // amp.setInput();
-
+      audiofile.pause(); // to continue from where we left off 
+      // future make this a toggle between pause and audiofile.stop();
+      fft.setInput();   // reset to default, can't reset amp 
     }
   INTERNALAUDIOMODE = !INTERNALAUDIOMODE;
 }
