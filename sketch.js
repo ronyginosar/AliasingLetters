@@ -103,22 +103,24 @@ function draw() {
     // TODO draw sketch
     reset(); // clean canvas
 
-
-
-    
-  }
+  
 
   // test
   stroke("black");
-  strokeWeight(1);
+  strokeWeight(5);
   let colors = ["red", "green", "blue"]; // or try CMYK!
-    let spacing = 1;
+  let horizontal_spacing = 5;
+  let zigzag_spacing = 8;
+  let transparency = 180; // 0-255
+  let BLACK = 0;
+  let xAmp = 10;     // amplitude of zigzag
+  let xFreq = 0.05;  // frequency of zigzag
 
 
 
-    for (let i = 0; i < height/2; i+=spacing) {
+    for (let i = 0; i < height/2; i+=horizontal_spacing) {
         // line(i, 0, i, height);
-            let c = colors[(i / spacing) % colors.length]; // cycle through colors
+            let c = colors[(i / horizontal_spacing) % colors.length]; // cycle through colors
         stroke(c);
         line(0, i, width, i);
         // // maybe zigzag is sound wave?
@@ -130,63 +132,21 @@ function draw() {
             // ellipse(i, i, 5, 5);
         // }
 
-        // if (i % 5 == 0) { // space out zigz
-        // // zigzag brut force
-        // let yAmp = 9;
-        // let  y = -yAmp;
-        // noFill();
-        // stroke("black");
-        // push();
-        //   // translate(0, frameRate());
-        //   // TODO move zigzag
-        //   beginShape();
-        //   for (let j = 0; j < 100; j++) {
-        //     vertex(j*10, y+i);
-        //     if(y == -yAmp) {
-        //       y = yAmp;
-        //     } else {
-        //       y = -yAmp;
-        //     }
-        //   }
-        //   endShape();
-        // pop();
-        // }
-
-
     }
+ // note we cant use the same loop due to the internal draw loop that draws over the "next" line
 
-    // for (let i = 0; i < height/2; i+=5) { // space out zigz
-    //     // zigzag brut force
-    //     let yAmp = 9;
-    //     let  y = -yAmp;
-    //     noFill();
-    //     stroke("black");
-    //     // push();
-    //       // translate(0, frameRate());
-    //       // TODO move zigzag
-    //       beginShape();
-    //       for (let j = 0; j < 100; j++) {
-    //         vertex(j*10, y+i);
-    //         if(y == -yAmp) {
-    //           y = yAmp;
-    //         } else {
-    //           y = -yAmp;
-    //         }
-    //       }
-    //       endShape();
-    //     // pop();
-    //   }
-
-
-let xAmp = 10;     // amplitude of zigzag
-  let xFreq = 0.05;  // frequency of zigzag
   // y+= 2 to 8 works good
-  for (let y = 0; y < height/2; y += 8) {
-    stroke(0, 180); // semi-transparent black
+  for (let y = 0; y < height/2; y += zigzag_spacing) {
+    stroke(BLACK, transparency); // semi-transparent black
     beginShape();
     noFill();
-    for (let x = 0; x < width; x += 5) {
-      let yOffset = sin(x * xFreq ) * xAmp;
+    // for (let x = 0; x < width; x += 5) {
+      // let yOffset = sin(x * xFreq ) * xAmp;
+      // using sound:
+    for (let i = 0; i < waveform.length; i += 5) { 
+
+      let x = map(i, 0, waveform.length, 0, width);
+      let yOffset = waveform[i] * xAmp;
       vertex(x, y + yOffset);
     }
     endShape();
@@ -194,6 +154,8 @@ let xAmp = 10;     // amplitude of zigzag
 
   // update phase each frame
   // phase += phaseSpeed;
+
+}
 
 }
 
