@@ -27,8 +27,7 @@ let phaseSpeed = 0.05; // how fast the wave moves
 
 
 function preload(){
-  // TODO
-    // audiofile = loadSound('/assets/Alto_score_simulation-for-rony_5th-movement.wav');
+    audiofile = loadSound('/assets/simulation_meandering-lines.aiff');
 }
 
 
@@ -57,6 +56,8 @@ function setup() {
 }
 
 function draw() {
+
+  frameRate(10);
 
   // future: return to this
   // if (soundController) {
@@ -105,48 +106,83 @@ function draw() {
 
   
 
-  // test
+  // visual
+
   stroke("black");
-  strokeWeight(5);
-  let colors = ["red", "green", "blue"]; // or try CMYK!
-  let horizontal_spacing = 5;
-  let zigzag_spacing = 8;
+  let strokeWeight_ = 5;
+  strokeWeight(strokeWeight_);
+  let colors = ["red", "green", "blue"];
+
+  // CMYK as RGBA you provided
+// const colors = [
+//   // cyan    = rgba(0, 252, 251, 255)
+//   () => color(0, 252, 251, 255),
+//   // magenta = rgba(253, 0, 251, 255)
+//   () => color(253, 0, 251, 255),
+//   // yellow  = rgba(253, 253, 0, 255)
+//   () => color(253, 253, 0, 255),
+//   // key     = rgba(0, 0, 0, 255)
+//   () => color(0, 0, 0, 255)
+// ];
+  let horizontal_spacing = strokeWeight_;
+  // let horizontal_spacing = 3;
+  let zigzag_spacing = 8; // y+= 2 to 8 works good
   let transparency = 180; // 0-255
   let BLACK = 0;
-  let xAmp = 10;     // amplitude of zigzag
-  let xFreq = 0.05;  // frequency of zigzag
+  let xAmp = 150;     // amplitude of zigzag
+  let smoothWaveform = [];
+  let lerpAmount = 0.005;
+  let smoothN = 10; // higher = smoother, slower
+  let avg = 0;
+
+  if (smoothWaveform.length === 0) {
+    smoothWaveform = waveform.slice(); // initialize
+  }
 
 
 
     for (let i = 0; i < height/2; i+=horizontal_spacing) {
-        // line(i, 0, i, height);
-            let c = colors[(i / horizontal_spacing) % colors.length]; // cycle through colors
+      // cycle through colors
+        let c = colors[(i / horizontal_spacing) % colors.length]; // RGB 
+        // let c = colors[(i / horizontal_spacing) % colors.length](); // CMYK
         stroke(c);
+        strokeWeight(strokeWeight_);
         line(0, i, width, i);
-        // // maybe zigzag is sound wave?
-        // var waveform = fft.waveform();
-        // for (var i = 0; i < waveform.length; i++) {
-        //     var x = map(i, 0, waveform.length, 0, width);
-        //     var y = map(waveform[i], -1, 1, height, 0);
-            // ellipse(x, y, 5, 5);
-            // ellipse(i, i, 5, 5);
-        // }
-
     }
  // note we cant use the same loop due to the internal draw loop that draws over the "next" line
 
-  // y+= 2 to 8 works good
+  
   for (let y = 0; y < height/2; y += zigzag_spacing) {
+    strokeWeight(strokeWeight_);
     stroke(BLACK, transparency); // semi-transparent black
     beginShape();
     noFill();
-    // for (let x = 0; x < width; x += 5) {
-      // let yOffset = sin(x * xFreq ) * xAmp;
-      // using sound:
-    for (let i = 0; i < waveform.length; i += 5) { 
 
+    // manual sine lines
+    // for (let x = 0; x < width; x += 5) {
+      // let xFreq = 0.05;  // frequency of zigzag
+      // let yOffset = sin(x * xFreq ) * xAmp;
+      
+      // using sound: audio-driven zigzag lines
+
+    for (let i = 0; i < waveform.length; i += strokeWeight_) { 
       let x = map(i, 0, waveform.length, 0, width);
-      let yOffset = waveform[i] * xAmp;
+      // Keep a buffer of the previous waveform and blend with the new one
+      smoothWaveform[i] = lerp(smoothWaveform[i], waveform[i], lerpAmount);
+
+      // let yOffset = waveform[i] * xAmp;
+      // let yOffset = smoothWaveform[i] * xAmp;
+
+      for (let k = 0; k < smoothN; k++) {
+        if (i + k < waveform.length) avg += waveform[i + k];
+      }
+      avg /= smoothN;
+      let yOffset = avg * xAmp;
+
+      // from "naive" example:
+      // var y = map(waveform[i], -1, 1, height, 0);
+
+
       vertex(x, y + yOffset);
     }
     endShape();
