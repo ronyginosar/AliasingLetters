@@ -22,12 +22,23 @@ let TEN_SECONDS = 60*10;
 let TWO_MINUTES = 60*2*60; // 2 minutes
 
 
-let phase = 0;     // shifting angle for animation
-let phaseSpeed = 0.05; // how fast the wave moves
+// Transition controller
+let TRANSITION = {
+  startAtSec: 180,   // <-- when to begin (use your TIME globals)
+  durationSec: 8,    // <-- speed of change (shorter = faster)
+  t: 0               // 0..1 mix, computed each frame
+};
+
+// helper for easing (optional)
+function smoothstep01(x){ x = constrain(x,0,1); return x*x*(3-2*x); }
+
+
+
 
 
 function preload(){
     audiofile = loadSound('/assets/lines_simulation.mp4');
+    img = loadImage('assets/T-S_K5_73_R_manual_2.png'); // for zigzag shape
 }
 
 
@@ -53,6 +64,55 @@ function setup() {
   audio = new p5.AudioIn(); // init as mic, later we can switch to audiofile
   fft = new p5.FFT();
   amp = new p5.Amplitude();
+
+
+  // test
+  
+  
+  // OPTION A: from an image you've already loaded as `img`
+  // TODO QUICK FIX - this stops image bug- > why??
+  let zz = createZigzagShape({
+    mode: 'image',
+    image: img,
+    numSegments: 60,
+    baseHeight: 120,
+    audioFactor: 0.15,  // subtle audio modulation
+    audioAmp: 40,
+    strokeWeight: 1,
+    opacity: 220
+  });
+
+  wl = createImageWaveLines({
+    image: img,             // your p5.Image
+    targetWidth: windowWidth,
+    rows: 20,
+    res: 900,
+    baseHeight: 30,
+    audioFactor: 1,      // subtle
+    audioAmp: 350,
+    ema: 0.08,
+    strokeWeight: 3,
+    strokeColor: color(0),  // black lines
+    opacity: 255,
+    sampleSkip: 1,
+    debug: false
+  });
+
+
+
+  // OPTION B: from text
+  // zz = createZigzagShape({
+  //   mode: 'text',
+  //   text: 'GERBILS',
+  //   font: myLoadedFont,   // optional
+  //   textSize: 160,
+  //   numSegments: 60,
+  //   baseHeight: 110,
+  //   audioFactor: 0.18,
+  //   audioAmp: 35,
+  //   strokeWeight: 1,
+  //   opacity: 220
+  // });
 }
 
 function draw() {
@@ -67,6 +127,18 @@ function draw() {
   // }
 
   if ((micEnabled || INTERNALAUDIOMODE) && !PRMODE) {
+
+    // use your own TIME; here I derive from millis for clarity
+const elapsedSec = millis()/1000;
+
+// compute mix 0..1
+if (elapsedSec >= TRANSITION.startAtSec) {
+  const u = (elapsedSec - TRANSITION.startAtSec) / TRANSITION.durationSec;
+  TRANSITION.t = smoothstep01(u);   // ease-in/out; use u for linear
+} else {
+  TRANSITION.t = 0;
+}
+
 
     // AMPLITUDE
     // p5.Amplitude object keeps track of the volume of a sound, and we can get this number, that ranges between 0 and 1, using the getLevel() function
@@ -107,7 +179,10 @@ function draw() {
   
 
   // visual
+  let transparency = 180;
 
+  const mix = TRANSITION.t;                 // 0..1
+const alphaOld = (1 - mix) * transparency;
 
   let strokeWeight_ = 5;
   strokeWeight(strokeWeight_);
@@ -128,7 +203,8 @@ function draw() {
   let color_line_spacing = strokeWeight_;
   // let horizontal_spacing = 3;
   let zigzag_spacing = 8; // y+= 2 to 8 works good
-  let transparency = 180; // 0-255
+  // let transparency = 180; // 0-255
+  transparency = alphaOld; // 0-255
   // let BLACK = backgroundcolor;
   let BLACK = 20;
   let zigzag_bleed = 0;
@@ -139,6 +215,12 @@ function draw() {
   let y_start = height/3;
   let y_end = 2*height/3;
 
+
+  
+
+
+
+// // TEMP
 
   // straight colored lines
     strokeWeight(strokeWeight_);
@@ -152,30 +234,57 @@ function draw() {
  // note we cant use the same loop due to the internal draw loop that draws over the "next" line
 
 
- // audio-driven zigzag lines
-  strokeWeight(strokeWeight_/2);
-  stroke(BLACK, transparency); // semi-transparent black
-  noFill();
-  for (let y = y_start-zigzag_bleed; y < y_end+zigzag_bleed; y += zigzag_spacing) {
-    beginShape();
-    for (let i = 0; i < waveform.length; i += strokeWeight_) { 
+//  // audio-driven zigzag lines
+//   strokeWeight(strokeWeight_/2);
+//   stroke(BLACK, transparency); // semi-transparent black
+//   noFill();
+//   for (let y = y_start-zigzag_bleed; y < y_end+zigzag_bleed; y += zigzag_spacing) {
+//     beginShape();
+//     for (let i = 0; i < waveform.length; i += strokeWeight_) { 
 
-      // avg worked nicer than smoothing
-      for (let k = 0; k < smoothN; k++) {
-        if (i + k < waveform.length) avg += waveform[i + k];
-      }
-      avg /= smoothN;
+//       // avg worked nicer than smoothing
+//       for (let k = 0; k < smoothN; k++) {
+//         if (i + k < waveform.length) avg += waveform[i + k];
+//       }
+//       avg /= smoothN;
   
-      let yOffset = avg * xAmp;
-      let x = map(i, 0, waveform.length, 0, width);
+//       let yOffset = avg * xAmp;
+//       let x = map(i, 0, waveform.length, 0, width);
 
-      vertex(x, y + yOffset);
-    }
-    endShape();
-  }
+//       vertex(x, y + yOffset);
+//     }
+//     endShape();
+//   }
 
-  // update phase each frame
-  // phase += phaseSpeed;
+//   // END TEMP
+
+// when you want to start drawing the zigzag shape (TIME gate handled by you):
+  // if (TIME > someThreshold) {
+  // image(img, 0, 0);
+    stroke(BLACK); // semi-transparent black
+    strokeWeight(1);
+  // console.log(zz);
+  //   const dt = deltaTime / 1000;
+  //   const wf = fft.waveform();    // you already compute this
+  //   zz.update(dt, wf);
+
+  //   // center-ish placement, scaled 2x (tweak to taste)
+  //   const sx = 2.0;
+  //   const dx = width/2 - (zz.width() * sx)/2;
+  //   const dy = height/2 - (zz.height() * sx)/2 - 100;
+  //   // zz.draw_(dx, dy, sx);
+
+  //   zz.draw_(20, 20, 1);
+
+  const dt = deltaTime / 1000;
+  const wf = fft.waveform();     // you already compute this
+  wl.update(dt, wf);
+
+  // draw it at top-left of the scaled image; it already matches window width
+  // wl.draw(0, (height - wl.height())/2); // vertical centering example
+  wl.draw(0, (height - wl.height())/2); // vertical centering example
+
+  // }
 
 }
 
