@@ -76,7 +76,7 @@ function draw() {
 
     // we "init" twice this ampLevel, it seems they are different objects and need to run one over the other
     // if (INTERNALAUDIOMODE) {
-      var ampLevel = amp.getLevel(); // get the level of the audio file
+      // var ampLevel = amp.getLevel(); // get the level of the audio file
     // } else {
       // var ampLevel = audio.getLevel(); // get the level of the mic input
     // }
@@ -133,59 +133,41 @@ function draw() {
   let BLACK = 20;
   let zigzag_bleed = 0;
   let xAmp = 150;     // amplitude of zigzag
-  let smoothWaveform = [];
-  let lerpAmount = 0.005;
-  let smoothN = 50; // higher = smoother, slower
+  let smoothN = 10; // higher = smoother, slower
   let avg = 0;
 
-    let y_start = height/3;
+  let y_start = height/3;
   let y_end = 2*height/3;
 
-  if (smoothWaveform.length === 0) {
-    smoothWaveform = waveform.slice(); // initialize
-  }
 
+  // straight colored lines
+    strokeWeight(strokeWeight_);
     for (let i = y_start; i < y_end; i+=color_line_spacing) {
       // cycle through colors
         let c = colors[(i / color_line_spacing) % colors.length]; // RGB 
         // let c = colors[(i / horizontal_spacing) % colors.length](); // CMYK
         stroke(c);
-        strokeWeight(strokeWeight_);
         line(0, i, width, i);
     }
  // note we cant use the same loop due to the internal draw loop that draws over the "next" line
 
 
+ // audio-driven zigzag lines
+  strokeWeight(strokeWeight_/2);
+  stroke(BLACK, transparency); // semi-transparent black
+  noFill();
   for (let y = y_start-zigzag_bleed; y < y_end+zigzag_bleed; y += zigzag_spacing) {
-    strokeWeight(strokeWeight_/2);
-    stroke(BLACK, transparency); // semi-transparent black
     beginShape();
-    noFill();
-
-    // manual sine lines
-    // for (let x = 0; x < width; x += 5) {
-      // let xFreq = 0.05;  // frequency of zigzag
-      // let yOffset = sin(x * xFreq ) * xAmp;
-      
-      // using sound: audio-driven zigzag lines
-
     for (let i = 0; i < waveform.length; i += strokeWeight_) { 
-      let x = map(i, 0, waveform.length, 0, width);
-      // Keep a buffer of the previous waveform and blend with the new one
-      smoothWaveform[i] = lerp(smoothWaveform[i], waveform[i], lerpAmount);
 
-      // let yOffset = waveform[i] * xAmp;
-      // let yOffset = smoothWaveform[i] * xAmp;
-
+      // avg worked nicer than smoothing
       for (let k = 0; k < smoothN; k++) {
         if (i + k < waveform.length) avg += waveform[i + k];
       }
       avg /= smoothN;
+  
       let yOffset = avg * xAmp;
-
-      // from "naive" example:
-      // var y = map(waveform[i], -1, 1, height, 0);
-
+      let x = map(i, 0, waveform.length, 0, width);
 
       vertex(x, y + yOffset);
     }
