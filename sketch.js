@@ -135,7 +135,7 @@ function draw() {
   let xAmp = 150;     // amplitude of zigzag
   let smoothWaveform = [];
   let lerpAmount = 0.005;
-  let smoothN = 10; // higher = smoother, slower
+  let smoothN = 50; // higher = smoother, slower
   let avg = 0;
 
     let y_start = height/3;
