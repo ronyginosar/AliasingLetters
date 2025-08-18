@@ -27,7 +27,7 @@ let phaseSpeed = 0.05; // how fast the wave moves
 
 
 function preload(){
-    audiofile = loadSound('/assets/simulation_meandering-lines.aiff');
+    audiofile = loadSound('/assets/lines_simulation.mp4');
 }
 
 
@@ -108,7 +108,7 @@ function draw() {
 
   // visual
 
-  stroke("black");
+
   let strokeWeight_ = 5;
   strokeWeight(strokeWeight_);
   let colors = ["red", "green", "blue"];
@@ -124,26 +124,30 @@ function draw() {
 //   // key     = rgba(0, 0, 0, 255)
 //   () => color(0, 0, 0, 255)
 // ];
-  let horizontal_spacing = strokeWeight_;
+
+  let color_line_spacing = strokeWeight_;
   // let horizontal_spacing = 3;
   let zigzag_spacing = 8; // y+= 2 to 8 works good
   let transparency = 180; // 0-255
-  let BLACK = 0;
+  // let BLACK = backgroundcolor;
+  let BLACK = 20;
+  let zigzag_bleed = 0;
   let xAmp = 150;     // amplitude of zigzag
   let smoothWaveform = [];
   let lerpAmount = 0.005;
   let smoothN = 10; // higher = smoother, slower
   let avg = 0;
 
+    let y_start = height/3;
+  let y_end = 2*height/3;
+
   if (smoothWaveform.length === 0) {
     smoothWaveform = waveform.slice(); // initialize
   }
 
-
-
-    for (let i = 0; i < height/2; i+=horizontal_spacing) {
+    for (let i = y_start; i < y_end; i+=color_line_spacing) {
       // cycle through colors
-        let c = colors[(i / horizontal_spacing) % colors.length]; // RGB 
+        let c = colors[(i / color_line_spacing) % colors.length]; // RGB 
         // let c = colors[(i / horizontal_spacing) % colors.length](); // CMYK
         stroke(c);
         strokeWeight(strokeWeight_);
@@ -151,9 +155,9 @@ function draw() {
     }
  // note we cant use the same loop due to the internal draw loop that draws over the "next" line
 
-  
-  for (let y = 0; y < height/2; y += zigzag_spacing) {
-    strokeWeight(strokeWeight_);
+
+  for (let y = y_start-zigzag_bleed; y < y_end+zigzag_bleed; y += zigzag_spacing) {
+    strokeWeight(strokeWeight_/2);
     stroke(BLACK, transparency); // semi-transparent black
     beginShape();
     noFill();
