@@ -76,7 +76,8 @@ let MODE = 0;  // change live, or time-gate later
 
 
 function preload() {
-  audiofile = loadSound("/assets/lines_simulation.mp4");
+  // audiofile = loadSound("/assets/lines_simulation.mp4");
+  audiofile = loadSound("assets/line_sound.mp3");
   shapeImg = loadImage("assets/T-S_K5_73_R_manual.png"); // for zigzag shape
 }
 
@@ -247,8 +248,10 @@ function initTerrain() {
 
 }
 
+let terrainFactor = 4; // 1-10
+
 function drawTerrainFromTopLine(waveform, bands) {
-    tp.w = width*6;                // *__ makes it diagonal from right // HIGH PRIORITY make scale to change 1-10
+    tp.w = width*terrainFactor;                // *__ makes it diagonal from right // HIGH PRIORITY make scale to change 1-10
     // tp.h = height;               // full window height  (or use y_end - y_start for a band)
 
   if (!g3d) initTerrain();
@@ -274,7 +277,9 @@ function drawTerrainFromTopLine(waveform, bands) {
   g3d.stroke(0);
   g3d.noFill();
   g3d.rotateX(PI/3);
-  g3d.translate(-tp.w, -tp.h/2, 0);
+  g3d.translate(-tp.w, -tp.h/2, 0); // HIGH PRIORITY
+  // g3d.translate(-tp.w/2, -tp.h/2, 0); // HIGH PRIORITY
+  // g3d.translate(-width/2, -tp.h/2, 0); // HIGH PRIORITY
 
   for (let y = 0; y < tp.rows-1; y++) {
     g3d.beginShape(TRIANGLE_STRIP);
@@ -294,79 +299,16 @@ function drawTerrainFromTopLine(waveform, bands) {
   image(g3d, 0, 0); // tweak Y mount point
 }
 
-// // ---- terrain state (same as before) ----
-// let g3d;
-// let tp = {
-//   scale: 14, w: 900, h: 700, cols: 0, rows: 0,
-//   zbuf: [], zoff: 0,
-//   // camera/pose
-//   pitch: 3.1416/3,
-//   fov:   3.1416/3,
-//   camZ:  900,
-//   camY:  260,
-//   horizonFactor: 0.66 // 0.60–0.70; aligns the far edge with y_start
-// };
-
-// function initTerrain() {
-//   g3d = createGraphics(tp.w, tp.h, WEBGL);
-//   tp.cols = floor(tp.w / tp.scale);
-//   tp.rows = floor(tp.h / tp.scale);
-//   tp.zbuf = Array.from({length: tp.cols}, () => new Float32Array(tp.rows));
-// }
-
-// function drawTerrainFromTopLine(waveform, bands, yStart) {
-//   if (!g3d) initTerrain();
-
-//   // --- build 1D profile from waveform ---
-//   const wf = resampleWave(waveform, tp.cols);
-
-//   // audio mapping
-//   const heightAmp   = lerp(60, 180, bands.bass);
-//   const flightSpeed = lerp(0.02, 0.14, bands.mids);
-//   const chop        = lerp(0.00, 0.06,  bands.highs);
-
-//   tp.zoff -= flightSpeed;
-
-//   // push newest profile forward
-//   for (let x = 0; x < tp.cols; x++) {
-//     for (let y = tp.rows - 1; y > 0; y--) tp.zbuf[x][y] = tp.zbuf[x][y-1];
-//     const noiseChop = (noise(x*0.08, tp.zoff)*2 - 1) * heightAmp * chop;
-//     tp.zbuf[x][0] = wf[x] * heightAmp + noiseChop;
-//   }
-
-//   // --- render into WEBGL buffer with perspective ---
-//   g3d.push();
-//   g3d.clear();
-//   g3d.resetMatrix();
-
-//   // camera + projection
-//   g3d.perspective(tp.fov, tp.w/tp.h, 10, 5000);
-//   // camera(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ)
-//   g3d.camera(0, tp.camY, tp.camZ,  0, 0, 0,  0, 1, 0);
-
-//   g3d.stroke(0, 240);
-//   g3d.strokeWeight(1.5);
-//   g3d.noFill();
-
-//   // pose the ground: rotate, then drop it so the far edge is near the top
-//   g3d.rotateX(tp.pitch);
-//   g3d.translate(-tp.w/2, -tp.h*0.5, 0); // center X, lift plane up a bit
-
-//   for (let y = 0; y < tp.rows - 1; y++) {
-//     g3d.beginShape(TRIANGLE_STRIP);
-//     for (let x = 0; x < tp.cols; x++) {
-//       g3d.vertex(x*tp.scale,     y*tp.scale,     tp.zbuf[x][y]);
-//       g3d.vertex(x*tp.scale, (y+1)*tp.scale,     tp.zbuf[x][y+1]);
-//     }
-//     g3d.endShape();
-//   }
-//   g3d.pop();
-
-//   // --- place the buffer so the “horizon” sits on y_start ---
-//   // const placeY = yStart - tp.h * tp.horizonFactor;
-//   const placeY = yStart - tp.h * tp.horizonFactor  + 200;
-//   image(g3d, 0, placeY);
-// }
+function keyPressed() {
+  // HIGH PRIORITY this has no effect since its after init.....
+  if (keyCode === LEFT_ARROW) {
+    terrainFactor -= 1;
+  } else if (keyCode === RIGHT_ARROW) {
+    terrainFactor +=1 ;
+  }
+  // prevent any default behavior.
+  return false;
+}
 
 
 // call these each frame after fft.waveform() / fft.analyze()
