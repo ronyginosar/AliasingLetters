@@ -1,4 +1,4 @@
-let backgroundcolor = 220;
+let backgroundcolor = 0;
 let canvas;
 
 // ===== audio plumbing =====
@@ -47,7 +47,7 @@ let transparency = 180;
 let strokeWeight_ = 5;
 let color_line_spacing = strokeWeight_;
 let zigzag_spacing = 8; // y+= 2 to 8 works good
-let BLACK = 20; // backgroundcolor?
+let BLACK = 0; // backgroundcolor?
 let zigzag_bleed = 0;
 let xAmp = 150; // amplitude of zigzag
 let smoothN = 10; // higher = smoother, slower
@@ -278,6 +278,7 @@ function drawTerrainFromTopLine(waveform, bands) {
 
   for (let y = 0; y < tp.rows-1; y++) {
     g3d.beginShape(TRIANGLE_STRIP);
+    // note can toggle TRIANGLES with translate on -tp.w/2 and tp.w = width
     for (let x = 0; x < tp.cols; x++) {
       g3d.vertex(x*tp.scale, y*tp.scale,     tp.zbuf[x][y]);
       g3d.vertex(x*tp.scale, (y+1)*tp.scale, tp.zbuf[x][y+1]);
