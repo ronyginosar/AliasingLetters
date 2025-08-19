@@ -9,7 +9,7 @@ var audio;
 let micEnabled = false;
 let INTERNALAUDIOMODE = false; // for debug
 // future make mic and internal mutex
-let btnMic, btnExport, btnInternalAudio;
+let btnMic, btnExport, btnInternalAudio, btnImageMode;
 
 let DEBUG = false; // for debug
 let PRMODE = false; // for debug
@@ -25,11 +25,18 @@ let shapeImg; // p5.Image (grayscale or any)
 let shapeProfile = null; // 2D Float32Array [rows][samples]
 let shapeRows, shapeSamples;
 // tuneables
-let imgContrast = 1.0; // optional contrast on brightness (see Q2)
-let imgGamma = 1.0; // optional gamma on brightness (see Q2)
+// MAIN SHAPER: imgAmp → how many pixels the image can bend a line up/down. Bigger imgAmp = taller hills/valleys.
 let imgAmp = 10; // how much the image bends the lines (px)
-// imgAmp → how many pixels the image can bend a line up/down. Bigger imgAmp = taller hills/valleys.
-let imgPolarity = +1; // +1: white rises, -1: black rises
+// Secondary shapers
+// imgContrast → multiplies the normalized brightness (bright−0.5)*2.
+// 1.0 emphasizes extremes (blacks/whites), <1.0 softens.
+// imgGamma → applies gamma to brightness before centering.
+// 1.0 downplays bright areas; <1.0 boosts them (nonlinear).
+// imgPolarity (+1 / −1) → flips which (white vs. black) “rises”.
+let imgPolarity = -1; // +1: white rises, -1: black rises
+let imgContrast = 1.0; // optional contrast on brightness 
+let imgGamma = 1.0; // optional gamma on brightness 
+
 
 // ===== line params =====
 let transparency = 180;
@@ -85,9 +92,15 @@ function setup() {
   btnMic = createButton("Mic ON/OFF");
   btnExport = createButton("Export");
   btnInternalAudio = createButton("Internal Audio");
+  btnImageMode = createButton("Use Image Shaping");
 
   btnExport.mousePressed(() => {
     saveCanvas("aliasing.png");
+  });
+
+  btnImageMode.mousePressed(() => {
+    USE_IMAGE_SHAPING = !USE_IMAGE_SHAPING;
+    btnImageMode.html(USE_IMAGE_SHAPING ? "Disable Image Shaping" : "Use Image Shaping");
   });
 
   // toggle inputs
@@ -153,9 +166,9 @@ function draw() {
         // --- audio contribution (same as before) ---
         let yOffset = avg * xAmp;
 
-        // --- optional image shaping (toggle) ---
+        // --- image shaping (toggle button) ---
         if (USE_IMAGE_SHAPING && shapeProfile) {
-          // future: transition
+          // HIGH PRIORITY: transition
           // yOffset += (shapeProfile ? imgNorm * imgAmp * mix : 0); // mix in [0..1], mix over time
 
           const r = Math.floor((y - y_start + zigzag_bleed) / zigzag_spacing);
