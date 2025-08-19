@@ -228,7 +228,7 @@ function draw() {
 
 // ---- Terrain state (WEBGL buffer so main stays 2D) ----
 let g3d;         // p5.Graphics(WEBGL)
-let tp = { scale: 14, w: 900, h: 700, cols: 0, rows: 0, zbuf: [], zoff: 0 };
+let tp = { scale: 24, w: 900, h: 650, cols: 0, rows: 0, zbuf: [], zoff: 0 };
 
 function initTerrain() {
   // y_start = 0; // reset y_start for terrain
@@ -237,8 +237,8 @@ function initTerrain() {
 
   g3d = createGraphics(tp.w, tp.h, WEBGL);
   // FADE / NO FADE >> dunes or not
-    // const gl = g3d._renderer.GL;
-    // gl.disable(gl.DEPTH_TEST);     // draw in order, no depth test
+    const gl = g3d._renderer.GL;
+    gl.disable(gl.DEPTH_TEST);     // draw in order, no depth test
 
 
   tp.cols = Math.floor(tp.w / tp.scale);
@@ -248,8 +248,8 @@ function initTerrain() {
 }
 
 function drawTerrainFromTopLine(waveform, bands) {
-    tp.w = width*7;                // *__ makes it diagonal from right
-    // tp.h = height/2;               // full window height  (or use y_end - y_start for a band)
+    tp.w = width*6;                // *__ makes it diagonal from right // HIGH PRIORITY make scale to change 1-10
+    // tp.h = height;               // full window height  (or use y_end - y_start for a band)
 
   if (!g3d) initTerrain();
   const wf = resampleWave(waveform, tp.cols);               // profile across X
@@ -274,7 +274,7 @@ function drawTerrainFromTopLine(waveform, bands) {
   g3d.stroke(0);
   g3d.noFill();
   g3d.rotateX(PI/3);
-  g3d.translate(-tp.w/2, -tp.h/2, 0);
+  g3d.translate(-tp.w, -tp.h/2, 0);
 
   for (let y = 0; y < tp.rows-1; y++) {
     g3d.beginShape(TRIANGLE_STRIP);
