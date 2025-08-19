@@ -9,7 +9,8 @@ var audio;
 let micEnabled = false;
 let INTERNALAUDIOMODE = false; // for debug
 // future make mic and internal mutex
-let btnMic, btnExport, btnInternalAudio, btnImageMode;
+let btnMic, btnExport, btnInternalAudio
+let btnImageMode, btnTerrainMode;
 
 let DEBUG = false; // for debug
 let PRMODE = false; // for debug
@@ -19,7 +20,7 @@ let FIVE_SECONDS = 60 * 5;
 let TEN_SECONDS = 60 * 10;
 let TWO_MINUTES = 60 * 2 * 60; // 2 minutes
 
-let USE_IMAGE_SHAPING = true; // flip true/false whenever you want
+let USE_IMAGE_SHAPING = false; // flip true/false whenever you want
 // ===== IMAGE SHAPING STATE =====
 let shapeImg; // p5.Image (grayscale or any)
 let shapeProfile = null; // 2D Float32Array [rows][samples]
@@ -36,6 +37,9 @@ let imgAmp = 10; // how much the image bends the lines (px)
 let imgPolarity = -1; // +1: white rises, -1: black rises
 let imgContrast = 1.0; // optional contrast on brightness 
 let imgGamma = 1.0; // optional gamma on brightness 
+
+let TERRAIN_MODE = false; // toggle terrain mode
+let WAVE_MODE = true;
 
 
 // ===== line params =====
@@ -58,6 +62,18 @@ let colors = ["red", "green", "blue"];
 //   () => color(253, 253, 0, 255),  // Y
 //   () => color(0, 0, 0, 255)       // K
 // ];
+
+
+// ---- MODE TOGGLE ----
+/*
+  0 = your current audio zigzags
+  1 = "terrain plane" made from the TOP zigzag line
+  2 = colored "line planes" (side view)
+  3 = vector-field ribbons
+*/
+let MODE = 0;  // change live, or time-gate later
+
+
 
 function preload() {
   audiofile = loadSound("/assets/lines_simulation.mp4");
@@ -92,7 +108,19 @@ function setup() {
   btnMic = createButton("Mic ON/OFF");
   btnExport = createButton("Export");
   btnInternalAudio = createButton("Internal Audio");
+  btnWaveMode = createButton("Disable Wave Mode");
   btnImageMode = createButton("Use Image Shaping");
+  btnTerrainMode = createButton("Use Terrain Mode");
+
+  btnWaveMode.mousePressed(() => {
+    WAVE_MODE = !WAVE_MODE;
+    btnWaveMode.html(WAVE_MODE ? "Disable Wave Mode" : "Use Wave Mode");
+  });
+
+  btnTerrainMode.mousePressed(() => {
+    TERRAIN_MODE = !TERRAIN_MODE;
+    btnTerrainMode.html(TERRAIN_MODE ? "Disable Terrain Mode" : "Use Terrain Mode");
+  });
 
   btnExport.mousePressed(() => {
     saveCanvas("aliasing.png");
@@ -149,6 +177,9 @@ function draw() {
     const sampleStepPx = strokeWeight_; // same as your i-step
     const rowsCount = Math.floor((y_end - y_start) / zigzag_spacing);
 
+    // MODE 0
+
+    if (WAVE_MODE) {
     for (let r = 0; r < rowsCount; r++) {
       const y = y_start - zigzag_bleed + r * zigzag_spacing;
       beginShape();
@@ -183,9 +214,182 @@ function draw() {
       endShape();
     }
   }
+
+    // MODE 1
+    if (TERRAIN_MODE){
+      const bands = audioBands(fft);
+      drawTerrainFromTopLine(waveform, bands, y_start);
+    }
+
+  }
 }
 
 // ################## helpers ##################
+
+// ---- Terrain state (WEBGL buffer so main stays 2D) ----
+let g3d;         // p5.Graphics(WEBGL)
+let tp = { scale: 14, w: 900, h: 700, cols: 0, rows: 0, zbuf: [], zoff: 0 };
+
+function initTerrain() {
+  // y_start = 0; // reset y_start for terrain
+  // y_end = height; // reset y_end for terrain
+  frameRate(1);
+
+  g3d = createGraphics(tp.w, tp.h, WEBGL);
+  // FADE / NO FADE >> dunes or not
+    // const gl = g3d._renderer.GL;
+    // gl.disable(gl.DEPTH_TEST);     // draw in order, no depth test
+
+
+  tp.cols = Math.floor(tp.w / tp.scale);
+  tp.rows = Math.floor(tp.h / tp.scale);
+  tp.zbuf = Array.from({length: tp.cols}, () => new Float32Array(tp.rows));
+
+}
+
+function drawTerrainFromTopLine(waveform, bands) {
+    tp.w = width*7;                // *__ makes it diagonal from right
+    // tp.h = height/2;               // full window height  (or use y_end - y_start for a band)
+
+  if (!g3d) initTerrain();
+  const wf = resampleWave(waveform, tp.cols);               // profile across X
+
+  // drive params by audio
+  const heightAmp   = lerp(60, 180, bands.bass);            // z range
+  const flightSpeed = lerp(0.02, 0.14, bands.mids);
+  const chop        = lerp(0.02, 0.10, bands.highs);        // ripples
+
+  tp.zoff -= flightSpeed;
+
+  // write newest column at "front" (row 0), push old back
+  for (let x = 0; x < tp.cols; x++) {
+    for (let y = tp.rows - 1; y > 0; y--) tp.zbuf[x][y] = tp.zbuf[x][y-1];
+    const zz = wf[x] * heightAmp + (noise(x*0.08, tp.zoff)*2-1) * heightAmp * chop;
+    tp.zbuf[x][0] = zz;
+  }
+
+  // ----- render buffer -----
+  g3d.push();
+  g3d.background(0,0);       // transparent
+  g3d.stroke(0);
+  g3d.noFill();
+  g3d.rotateX(PI/3);
+  g3d.translate(-tp.w/2, -tp.h/2, 0);
+
+  for (let y = 0; y < tp.rows-1; y++) {
+    g3d.beginShape(TRIANGLE_STRIP);
+    for (let x = 0; x < tp.cols; x++) {
+      g3d.vertex(x*tp.scale, y*tp.scale,     tp.zbuf[x][y]);
+      g3d.vertex(x*tp.scale, (y+1)*tp.scale, tp.zbuf[x][y+1]);
+    }
+    g3d.endShape();
+  }
+  g3d.pop();
+
+
+
+  // blend onto main canvas where your band begins
+  // image(g3d, 0, y_start - tp.h*0.4); // tweak Y mount point
+  image(g3d, 0, 0); // tweak Y mount point
+}
+
+// // ---- terrain state (same as before) ----
+// let g3d;
+// let tp = {
+//   scale: 14, w: 900, h: 700, cols: 0, rows: 0,
+//   zbuf: [], zoff: 0,
+//   // camera/pose
+//   pitch: 3.1416/3,
+//   fov:   3.1416/3,
+//   camZ:  900,
+//   camY:  260,
+//   horizonFactor: 0.66 // 0.60–0.70; aligns the far edge with y_start
+// };
+
+// function initTerrain() {
+//   g3d = createGraphics(tp.w, tp.h, WEBGL);
+//   tp.cols = floor(tp.w / tp.scale);
+//   tp.rows = floor(tp.h / tp.scale);
+//   tp.zbuf = Array.from({length: tp.cols}, () => new Float32Array(tp.rows));
+// }
+
+// function drawTerrainFromTopLine(waveform, bands, yStart) {
+//   if (!g3d) initTerrain();
+
+//   // --- build 1D profile from waveform ---
+//   const wf = resampleWave(waveform, tp.cols);
+
+//   // audio mapping
+//   const heightAmp   = lerp(60, 180, bands.bass);
+//   const flightSpeed = lerp(0.02, 0.14, bands.mids);
+//   const chop        = lerp(0.00, 0.06,  bands.highs);
+
+//   tp.zoff -= flightSpeed;
+
+//   // push newest profile forward
+//   for (let x = 0; x < tp.cols; x++) {
+//     for (let y = tp.rows - 1; y > 0; y--) tp.zbuf[x][y] = tp.zbuf[x][y-1];
+//     const noiseChop = (noise(x*0.08, tp.zoff)*2 - 1) * heightAmp * chop;
+//     tp.zbuf[x][0] = wf[x] * heightAmp + noiseChop;
+//   }
+
+//   // --- render into WEBGL buffer with perspective ---
+//   g3d.push();
+//   g3d.clear();
+//   g3d.resetMatrix();
+
+//   // camera + projection
+//   g3d.perspective(tp.fov, tp.w/tp.h, 10, 5000);
+//   // camera(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ)
+//   g3d.camera(0, tp.camY, tp.camZ,  0, 0, 0,  0, 1, 0);
+
+//   g3d.stroke(0, 240);
+//   g3d.strokeWeight(1.5);
+//   g3d.noFill();
+
+//   // pose the ground: rotate, then drop it so the far edge is near the top
+//   g3d.rotateX(tp.pitch);
+//   g3d.translate(-tp.w/2, -tp.h*0.5, 0); // center X, lift plane up a bit
+
+//   for (let y = 0; y < tp.rows - 1; y++) {
+//     g3d.beginShape(TRIANGLE_STRIP);
+//     for (let x = 0; x < tp.cols; x++) {
+//       g3d.vertex(x*tp.scale,     y*tp.scale,     tp.zbuf[x][y]);
+//       g3d.vertex(x*tp.scale, (y+1)*tp.scale,     tp.zbuf[x][y+1]);
+//     }
+//     g3d.endShape();
+//   }
+//   g3d.pop();
+
+//   // --- place the buffer so the “horizon” sits on y_start ---
+//   // const placeY = yStart - tp.h * tp.horizonFactor;
+//   const placeY = yStart - tp.h * tp.horizonFactor  + 200;
+//   image(g3d, 0, placeY);
+// }
+
+
+// call these each frame after fft.waveform() / fft.analyze()
+function audioBands(fft) {
+  return {
+    bass:   fft.getEnergy(20, 200)   / 255,   // 0..1
+    mids:   fft.getEnergy(200, 2000) / 255,
+    highs:  fft.getEnergy(2000, 8000)/ 255
+  };
+}
+
+// resample waveform to N points (averaging) – stable & fast
+function resampleWave(wf, N) {
+  const out = new Float32Array(N);
+  if (!wf || wf.length === 0) return out;
+  const step = wf.length / N;
+  for (let k = 0; k < N; k++) {
+    const s = Math.floor(k * step), e = Math.max(s + 1, Math.floor((k + 1) * step));
+    let sum = 0; for (let i = s; i < e; i++) sum += wf[i];
+    out[k] = sum / (e - s);
+  }
+  return out;
+}
+
 
 function buildShapeProfile({
   yStart,
