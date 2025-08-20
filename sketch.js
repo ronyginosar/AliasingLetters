@@ -72,7 +72,7 @@ let colors = ["red", "green", "blue"];
   3 = vector-field ribbons
 */
 let MODE = 0;  // change live, or time-gate later
-
+let rowsCount;
 
 
 function preload() {
@@ -172,11 +172,11 @@ function draw() {
 
     // audio-driven zigzag lines
     strokeWeight(strokeWeight_ / 2);
-    stroke(BLACK, transparency); // semi-transparent black
+    stroke(BLACK);//, transparency); // semi-transparent black
     noFill();
 
     const sampleStepPx = strokeWeight_; // same as your i-step
-    const rowsCount = Math.floor((y_end - y_start) / zigzag_spacing);
+    rowsCount = Math.floor((y_end - y_start) / zigzag_spacing); // FUTURE margins interesting?
 
     // MODE 0
 
@@ -302,10 +302,17 @@ function drawTerrainFromTopLine(waveform, bands) {
 function keyPressed() {
   // HIGH PRIORITY this has no effect since its after init.....
   if (keyCode === LEFT_ARROW) {
-    terrainFactor -= 1;
+    terrainFactor -= 1; // constrain(terrainFactor + 1, 1, 10);
   } else if (keyCode === RIGHT_ARROW) {
     terrainFactor +=1 ;
-  }
+  } 
+  // TODO
+  // else if (keyCode === UP_ARROW) {
+  //   // strokeWeight_ or rowsCount
+  //   rowsCount = constrain(rowsCount + 1, 1, Math.floor((y_end - y_start) / zigzag_spacing));
+  // } else if (keyCode === DOWN_ARROW) {
+  //   rowsCount = constrain(rowsCount - 1, 1, Math.floor((y_end - y_start) / zigzag_spacing));
+  // }
   // prevent any default behavior.
   return false;
 }
