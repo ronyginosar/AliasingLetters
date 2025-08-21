@@ -9,7 +9,7 @@ var audio;
 let micEnabled = false;
 let INTERNALAUDIOMODE = false; // for debug
 // future make mic and internal mutex
-let btnMic, btnExport, btnInternalAudio
+let btnMic, btnExport, btnInternalAudio;
 let btnImageMode, btnTerrainMode;
 
 let DEBUG = false; // for debug
@@ -35,12 +35,11 @@ let imgAmp = 10; // how much the image bends the lines (px)
 // 1.0 downplays bright areas; <1.0 boosts them (nonlinear).
 // imgPolarity (+1 / −1) → flips which (white vs. black) “rises”.
 let imgPolarity = -1; // +1: white rises, -1: black rises
-let imgContrast = 1.0; // optional contrast on brightness 
-let imgGamma = 1.0; // optional gamma on brightness 
+let imgContrast = 1.0; // optional contrast on brightness
+let imgGamma = 1.0; // optional gamma on brightness
 
 let TERRAIN_MODE = false; // toggle terrain mode
 let WAVE_MODE = true;
-
 
 // ===== line params =====
 let transparency = 180;
@@ -63,7 +62,6 @@ let colors = ["red", "green", "blue"];
 //   () => color(0, 0, 0, 255)       // K
 // ];
 
-
 // ---- MODE TOGGLE ----
 /*
   0 = your current audio zigzags
@@ -71,9 +69,8 @@ let colors = ["red", "green", "blue"];
   2 = colored "line planes" (side view)
   3 = vector-field ribbons
 */
-let MODE = 0;  // change live, or time-gate later
+let MODE = 0; // change live, or time-gate later
 let rowsCount;
-
 
 function preload() {
   // audiofile = loadSound("/assets/lines_simulation.mp4");
@@ -89,8 +86,10 @@ function setup() {
   canvas = createCanvas(windowWidth, windowHeight - 40); // 40 for buttons
   reset();
 
-  y_start = height / 3;
-  y_end = (2 * height) / 3;
+  // y_start = height / 3;
+  // y_end = (2 * height) / 3;
+  y_start = height / 6;
+  y_end = (5 * height) / 6;
   console.log("SETUP; y_start: " + y_start + ", y_end: " + y_end);
 
   shapeImg.filter(BLUR, 4); // future: more filters?
@@ -104,6 +103,8 @@ function setup() {
     fitMode: "fitWidth", // or "cover"/"stretch"
   });
   // note: (If change spacing/window size later, call buildShapeProfile(...) again.)
+
+  rowsCount = Math.floor((y_end - y_start) / zigzag_spacing); // FUTURE margins interesting?
 
   // ui
   btnMic = createButton("Mic ON/OFF");
@@ -120,7 +121,9 @@ function setup() {
 
   btnTerrainMode.mousePressed(() => {
     TERRAIN_MODE = !TERRAIN_MODE;
-    btnTerrainMode.html(TERRAIN_MODE ? "Disable Terrain Mode" : "Use Terrain Mode");
+    btnTerrainMode.html(
+      TERRAIN_MODE ? "Disable Terrain Mode" : "Use Terrain Mode"
+    );
   });
 
   btnExport.mousePressed(() => {
@@ -129,7 +132,9 @@ function setup() {
 
   btnImageMode.mousePressed(() => {
     USE_IMAGE_SHAPING = !USE_IMAGE_SHAPING;
-    btnImageMode.html(USE_IMAGE_SHAPING ? "Disable Image Shaping" : "Use Image Shaping");
+    btnImageMode.html(
+      USE_IMAGE_SHAPING ? "Disable Image Shaping" : "Use Image Shaping"
+    );
   });
 
   // toggle inputs
@@ -172,64 +177,71 @@ function draw() {
 
     // audio-driven zigzag lines
     strokeWeight(strokeWeight_ / 2);
-    stroke(BLACK);//, transparency); // semi-transparent black
+    stroke(BLACK); //, transparency); // semi-transparent black
     noFill();
 
-    const sampleStepPx = strokeWeight_; // same as your i-step
-    rowsCount = Math.floor((y_end - y_start) / zigzag_spacing); // FUTURE margins interesting?
+    let sampleStepPx = strokeWeight_; // same as your i-step
 
     // MODE 0
 
     if (WAVE_MODE) {
-    for (let r = 0; r < rowsCount; r++) {
-      const y = y_start - zigzag_bleed + r * zigzag_spacing;
-      beginShape();
+      for (let r = 0; r < rowsCount; r++) {
+        let y = y_start - zigzag_bleed + r * zigzag_spacing;
+        // future
+        //const midY = 0.5 * (y_start + y_end);        // band midpoint
+        // const topY = y_start - zigzag_bleed;         // target “upwards” limit
+        // if (rowsCount <= 1) return midY;
+        // const span = max(1, midY - topY);            // distance from mid to top
+        // const step = span / (rowsCount - 1);         // equal spacing
+        // return midY - r * step;
 
-      for (let i = 0; i < waveform.length; i += strokeWeight_) {
-        // --- audio smoothing (reset avg per i) ---
-        let avg = 0;
-        for (let k = 0; k < smoothN; k++) {
-          if (i + k < waveform.length) avg += waveform[i + k];
+
+        beginShape();
+
+        for (let i = 0; i < waveform.length; i += strokeWeight_) {
+          // --- audio smoothing (reset avg per i) ---
+          let avg = 0;
+          for (let k = 0; k < smoothN; k++) {
+            if (i + k < waveform.length) avg += waveform[i + k];
+          }
+          avg /= smoothN;
+
+          let x = map(i, 0, waveform.length - 1, 0, width);
+
+          // --- audio contribution (same as before) ---
+          let yOffset = avg * xAmp;
+
+          // --- image shaping (toggle button) ---
+          if (USE_IMAGE_SHAPING && shapeProfile) {
+            // HIGH PRIORITY: transition
+            // yOffset += (shapeProfile ? imgNorm * imgAmp * mix : 0); // mix in [0..1], mix over time
+
+            let r = Math.floor((y - y_start + zigzag_bleed) / zigzag_spacing);
+            let s = Math.min(Math.floor(x / sampleStepPx), shapeSamples - 1);
+            let imgNorm = shapeProfile[r]?.[s] ?? 0; // [-1..1]
+            yOffset += imgNorm * imgAmp; // apply image bend
+          }
+
+          vertex(x, y + yOffset);
         }
-        avg /= smoothN;
 
-        const x = map(i, 0, waveform.length - 1, 0, width);
-
-        // --- audio contribution (same as before) ---
-        let yOffset = avg * xAmp;
-
-        // --- image shaping (toggle button) ---
-        if (USE_IMAGE_SHAPING && shapeProfile) {
-          // HIGH PRIORITY: transition
-          // yOffset += (shapeProfile ? imgNorm * imgAmp * mix : 0); // mix in [0..1], mix over time
-
-          const r = Math.floor((y - y_start + zigzag_bleed) / zigzag_spacing);
-          const s = Math.min(Math.floor(x / sampleStepPx), shapeSamples - 1);
-          const imgNorm = shapeProfile[r]?.[s] ?? 0; // [-1..1]
-          yOffset += imgNorm * imgAmp; // apply image bend
-        }
-
-        vertex(x, y + yOffset);
+        endShape();
       }
-
-      endShape();
     }
-  }
 
     // MODE 1
-    if (TERRAIN_MODE){
+    if (TERRAIN_MODE) {
       const bands = audioBands(fft);
       drawTerrainFromTopLine(waveform, bands, y_start);
     }
-
   }
 }
 
 // ################## helpers ##################
 
 // ---- Terrain state (WEBGL buffer so main stays 2D) ----
-let g3d;         // p5.Graphics(WEBGL)
-let tp = { scale: 24, w: 900, h: 650, cols: 0, rows: 0, zbuf: [], zoff: 0 };
+let g3d; // p5.Graphics(WEBGL)
+let tp = { scale: 30, w: 2900, h: 950, cols: 0, rows: 0, zbuf: [], zoff: 0 };
 
 function initTerrain() {
   // y_start = 0; // reset y_start for terrain
@@ -238,61 +250,60 @@ function initTerrain() {
 
   g3d = createGraphics(tp.w, tp.h, WEBGL);
   // FADE / NO FADE >> dunes or not
-    const gl = g3d._renderer.GL;
-    gl.disable(gl.DEPTH_TEST);     // draw in order, no depth test
-
+  const gl = g3d._renderer.GL;
+  gl.disable(gl.DEPTH_TEST); // draw in order, no depth test
 
   tp.cols = Math.floor(tp.w / tp.scale);
   tp.rows = Math.floor(tp.h / tp.scale);
-  tp.zbuf = Array.from({length: tp.cols}, () => new Float32Array(tp.rows));
-
+  tp.zbuf = Array.from({ length: tp.cols }, () => new Float32Array(tp.rows));
 }
 
-let terrainFactor = 4; // 1-10
+// let terrainFactor = 4; // 1-10
 
 function drawTerrainFromTopLine(waveform, bands) {
-    tp.w = width*terrainFactor;                // *__ makes it diagonal from right // HIGH PRIORITY make scale to change 1-10
-    // tp.h = height;               // full window height  (or use y_end - y_start for a band)
+  tp.w = width; //*terrainFactor;                // *__ makes it diagonal from right, scale to change 1-10
+  tp.h = height; // full window height  (or use y_end - y_start for a band)
 
   if (!g3d) initTerrain();
-  const wf = resampleWave(waveform, tp.cols);               // profile across X
+  const wf = resampleWave(waveform, tp.cols); // profile across X
 
   // drive params by audio
-  const heightAmp   = lerp(60, 180, bands.bass);            // z range
+  const heightAmp = lerp(60, 180, bands.bass); // z range
   const flightSpeed = lerp(0.02, 0.14, bands.mids);
-  const chop        = lerp(0.02, 0.10, bands.highs);        // ripples
+  const chop = lerp(0.02, 0.1, bands.highs); // ripples
 
   tp.zoff -= flightSpeed;
 
   // write newest column at "front" (row 0), push old back
   for (let x = 0; x < tp.cols; x++) {
-    for (let y = tp.rows - 1; y > 0; y--) tp.zbuf[x][y] = tp.zbuf[x][y-1];
-    const zz = wf[x] * heightAmp + (noise(x*0.08, tp.zoff)*2-1) * heightAmp * chop;
+    for (let y = tp.rows - 1; y > 0; y--) tp.zbuf[x][y] = tp.zbuf[x][y - 1];
+    const zz =
+      wf[x] * heightAmp + (noise(x * 0.08, tp.zoff) * 2 - 1) * heightAmp * chop;
     tp.zbuf[x][0] = zz;
   }
 
   // ----- render buffer -----
   g3d.push();
-  g3d.background(0,0);       // transparent
+  g3d.background(0, 0); // transparent
+  g3d.strokeWeight(strokeWeight_);
   g3d.stroke(0);
   g3d.noFill();
-  g3d.rotateX(PI/3);
-  g3d.translate(-tp.w, -tp.h/2, 0); // HIGH PRIORITY
-  // g3d.translate(-tp.w/2, -tp.h/2, 0); // HIGH PRIORITY
-  // g3d.translate(-width/2, -tp.h/2, 0); // HIGH PRIORITY
+  g3d.rotateX(PI / 3);
+  // g3d.translate(-tp.w, -tp.h/2, 0); //
+  g3d.translate(-tp.w / 2, -tp.h / 2, 0); //
+  // g3d.translate(-width/2, -tp.h/2, 0); //
 
-  for (let y = 0; y < tp.rows-1; y++) {
+  for (let y = 0; y < tp.rows - 1; y++) {
     g3d.beginShape(TRIANGLE_STRIP);
+    // g3d.beginShape(TRIANGLES);
     // note can toggle TRIANGLES with translate on -tp.w/2 and tp.w = width
     for (let x = 0; x < tp.cols; x++) {
-      g3d.vertex(x*tp.scale, y*tp.scale,     tp.zbuf[x][y]);
-      g3d.vertex(x*tp.scale, (y+1)*tp.scale, tp.zbuf[x][y+1]);
+      g3d.vertex(x * tp.scale, y * tp.scale, tp.zbuf[x][y]);
+      g3d.vertex(x * tp.scale, (y + 1) * tp.scale, tp.zbuf[x][y + 1]);
     }
     g3d.endShape();
   }
   g3d.pop();
-
-
 
   // blend onto main canvas where your band begins
   // image(g3d, 0, y_start - tp.h*0.4); // tweak Y mount point
@@ -300,30 +311,38 @@ function drawTerrainFromTopLine(waveform, bands) {
 }
 
 function keyPressed() {
-  // HIGH PRIORITY this has no effect since its after init.....
   if (keyCode === LEFT_ARROW) {
-    terrainFactor -= 1; // constrain(terrainFactor + 1, 1, 10);
+    console.log("LEFT_ARROW pressed, rowsCount: " + rowsCount);
+
+    rowsCount = constrain(
+      rowsCount + 2,
+      1,
+      Math.floor((y_end - y_start) / zigzag_spacing)
+    );
+    console.log("LEFT_ARROW pressed, rowsCount: " + rowsCount);
   } else if (keyCode === RIGHT_ARROW) {
-    terrainFactor +=1 ;
-  } 
-  // TODO
-  // else if (keyCode === UP_ARROW) {
-  //   // strokeWeight_ or rowsCount
-  //   rowsCount = constrain(rowsCount + 1, 1, Math.floor((y_end - y_start) / zigzag_spacing));
-  // } else if (keyCode === DOWN_ARROW) {
-  //   rowsCount = constrain(rowsCount - 1, 1, Math.floor((y_end - y_start) / zigzag_spacing));
-  // }
+    rowsCount = constrain(
+      rowsCount - 2,
+      1,
+      Math.floor((y_end - y_start) / zigzag_spacing)
+    );
+  } else if (keyCode === UP_ARROW) {
+    // strokeWeight_ or rowsCount
+    strokeWeight_ = constrain(strokeWeight_ + 1, 1, 100);
+    console.log("Stroke weight increased to: " + strokeWeight_);
+  } else if (keyCode === DOWN_ARROW) {
+    strokeWeight_ = constrain(strokeWeight_ - 1, 1, 100);
+  }
   // prevent any default behavior.
   return false;
 }
 
-
 // call these each frame after fft.waveform() / fft.analyze()
 function audioBands(fft) {
   return {
-    bass:   fft.getEnergy(20, 200)   / 255,   // 0..1
-    mids:   fft.getEnergy(200, 2000) / 255,
-    highs:  fft.getEnergy(2000, 8000)/ 255
+    bass: fft.getEnergy(20, 200) / 255, // 0..1
+    mids: fft.getEnergy(200, 2000) / 255,
+    highs: fft.getEnergy(2000, 8000) / 255,
   };
 }
 
@@ -333,13 +352,14 @@ function resampleWave(wf, N) {
   if (!wf || wf.length === 0) return out;
   const step = wf.length / N;
   for (let k = 0; k < N; k++) {
-    const s = Math.floor(k * step), e = Math.max(s + 1, Math.floor((k + 1) * step));
-    let sum = 0; for (let i = s; i < e; i++) sum += wf[i];
+    const s = Math.floor(k * step),
+      e = Math.max(s + 1, Math.floor((k + 1) * step));
+    let sum = 0;
+    for (let i = s; i < e; i++) sum += wf[i];
     out[k] = sum / (e - s);
   }
   return out;
 }
-
 
 function buildShapeProfile({
   yStart,
