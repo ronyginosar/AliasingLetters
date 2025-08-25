@@ -83,7 +83,7 @@ function setup() {
     pixelDensity(10);
   }
 
-  canvas = createCanvas(windowWidth, windowHeight - 40); // 40 for buttons
+  canvas = createCanvas(windowWidth, windowHeight); // 40 for buttons
   reset();
 
   // y_start = height / 3;
@@ -106,40 +106,40 @@ function setup() {
 
   rowsCount = Math.floor((y_end - y_start) / zigzag_spacing); // FUTURE margins interesting?
 
-  // ui
-  btnMic = createButton("Mic ON/OFF");
-  btnExport = createButton("Export");
-  btnInternalAudio = createButton("Internal Audio");
-  btnWaveMode = createButton("Disable Wave Mode");
-  btnImageMode = createButton("Use Image Shaping");
-  btnTerrainMode = createButton("Use Terrain Mode");
+  // // ui
+  // btnMic = createButton("Mic ON/OFF");
+  // btnExport = createButton("Export");
+  // btnInternalAudio = createButton("Internal Audio");
+  // btnWaveMode = createButton("Disable Wave Mode");
+  // btnImageMode = createButton("Use Image Shaping");
+  // btnTerrainMode = createButton("Use Terrain Mode");
 
-  btnWaveMode.mousePressed(() => {
-    WAVE_MODE = !WAVE_MODE;
-    btnWaveMode.html(WAVE_MODE ? "Disable Wave Mode" : "Use Wave Mode");
-  });
+  // btnWaveMode.mousePressed(() => {
+  //   WAVE_MODE = !WAVE_MODE;
+  //   btnWaveMode.html(WAVE_MODE ? "Disable Wave Mode" : "Use Wave Mode");
+  // });
 
-  btnTerrainMode.mousePressed(() => {
-    TERRAIN_MODE = !TERRAIN_MODE;
-    btnTerrainMode.html(
-      TERRAIN_MODE ? "Disable Terrain Mode" : "Use Terrain Mode"
-    );
-  });
+  // btnTerrainMode.mousePressed(() => {
+  //   TERRAIN_MODE = !TERRAIN_MODE;
+  //   btnTerrainMode.html(
+  //     TERRAIN_MODE ? "Disable Terrain Mode" : "Use Terrain Mode"
+  //   );
+  // });
 
-  btnExport.mousePressed(() => {
-    saveCanvas("aliasing.png");
-  });
+  // btnExport.mousePressed(() => {
+  //   saveCanvas("aliasing.png");
+  // });
 
-  btnImageMode.mousePressed(() => {
-    USE_IMAGE_SHAPING = !USE_IMAGE_SHAPING;
-    btnImageMode.html(
-      USE_IMAGE_SHAPING ? "Disable Image Shaping" : "Use Image Shaping"
-    );
-  });
+  // btnImageMode.mousePressed(() => {
+  //   USE_IMAGE_SHAPING = !USE_IMAGE_SHAPING;
+  //   btnImageMode.html(
+  //     USE_IMAGE_SHAPING ? "Disable Image Shaping" : "Use Image Shaping"
+  //   );
+  // });
 
-  // toggle inputs
-  btnMic.mousePressed(toggleMic);
-  btnInternalAudio.mousePressed(toggleInternalAudio);
+  // // toggle inputs
+  // btnMic.mousePressed(toggleMic);
+  // btnInternalAudio.mousePressed(toggleInternalAudio);
 
   audio = new p5.AudioIn(); // init as mic, later we can switch to audiofile
   fft = new p5.FFT();
@@ -149,7 +149,11 @@ function setup() {
 function draw() {
   frameRate(10);
 
-  if ((micEnabled || INTERNALAUDIOMODE) && !PRMODE) {
+    audio.start();
+  fft.setInput(audio);
+  amp.setInput(audio);
+
+  // if ((micEnabled || INTERNALAUDIOMODE) && !PRMODE) {
     var waveform = fft.waveform();
     fft.analyze();
 
@@ -235,7 +239,7 @@ function draw() {
       drawTerrainFromTopLine(waveform, bands, y_start);
     }
   }
-}
+// }
 
 // ################## helpers ##################
 
